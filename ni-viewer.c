@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "raylib.h"
 
 #define MAKE_ID( s )        ( (unsigned int)( ( s[0] << 24 ) | ( s[1] << 16 ) | ( s[2] << 8 ) | ( s[3] ) ) )
@@ -14,6 +15,18 @@ struct iff {
     unsigned int length;
     void *data;
     unsigned int reserved;
+};
+
+struct iff_nimg_frame
+{
+	unsigned char  left;
+	unsigned char  top;
+	unsigned char  width;
+	unsigned char  height;
+	unsigned short delay;
+	unsigned char  compr;
+	unsigned char  reserved;         // SBZ
+	unsigned char  data[];
 };
 
 unsigned int f_get_w(FILE *fh) {
@@ -90,6 +103,27 @@ struct iff *iff_find(struct iff *prev, unsigned int type) {
     return prev;
 }
 
+/* byterun1 decompress algorithm by [Yak] */
+int byterun1_decompress ( register unsigned char *outbuf, register unsigned char *inbuf, int size ) {
+    int in = 0, out = 0;
+
+    while(in < size) {
+        if ( inbuf[in] <= 127 ) {
+            memcpy ( outbuf + out, inbuf + in + 1, inbuf[in] + 1 );
+            out += inbuf[in] + 1;
+            in += inbuf[in] + 2;
+        } else if ( inbuf[in] != 128 ) {
+            memset ( outbuf + out, inbuf[in + 1], 257 - inbuf[in] );
+            out += 257 - inbuf[in];
+            in += 2;
+        } else {
+            in++;                  /* 128 = NOP */
+        }
+    }
+
+    return out;
+}
+
 int main(void) {
     const int screenWidth = 800;
     const int screenHeight = 450;
@@ -97,6 +131,8 @@ int main(void) {
     FILE *iffFile = fopen("8014.ni", "rb");
     struct iff *iffh = iff_open(iffFile);
     struct iff *img = iff_find(iffh, IFF_FRAM);
+    struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
+    return 0;
 
     InitWindow(screenWidth, screenHeight, "NI viewer");
     SetTargetFPS(60);
