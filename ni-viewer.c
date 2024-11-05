@@ -19,14 +19,14 @@ struct iff {
 
 struct iff_nimg_frame
 {
-	unsigned char  left;
-	unsigned char  top;
-	unsigned char  width;
-	unsigned char  height;
-	unsigned short delay;
-	unsigned char  compr;
-	unsigned char  reserved;         // SBZ
-	unsigned char  data[];
+    unsigned char  left;
+    unsigned char  top;
+    unsigned char  width;
+    unsigned char  height;
+    unsigned short delay;
+    unsigned char  compr;
+    unsigned char  reserved;         // SBZ
+    unsigned char  data[];
 };
 
 unsigned int f_get_w(FILE *fh) {
@@ -125,14 +125,38 @@ int byterun1_decompress ( register unsigned char *outbuf, register unsigned char
 }
 
 int main(void) {
-    const int screenWidth = 800;
-    const int screenHeight = 450;
 
     FILE *iffFile = fopen("8014.ni", "rb");
     struct iff *iffh = iff_open(iffFile);
     struct iff *img = iff_find(iffh, IFF_FRAM);
+
+
     struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
-    return 0;
+    unsigned char *bmp = malloc(((frame->height+7) / 8) * frame->width );
+
+    if ( bmp ) {
+        if ( frame->compr == 1 ) {
+            byterun1_decompress ( bmp, frame->data, img->length - sizeof ( struct iff_nimg_frame ) );
+        } else {
+            memcpy ( bmp, frame->data, img->length - sizeof ( struct iff_nimg_frame ) );
+        }
+    }
+    
+    int *screen = (int*)malloc(frame->width*frame->height*sizeof(int));
+
+    for ( int row = 0; row < ( ( frame->height + 7 ) / 8 ); row++ ) {
+        for ( int col = 0; col < frame->width; col++ ) {
+            for ( int bit = 0; bit < 8; bit++ ) {
+                if ( row * 8 + bit >= frame->height ) {
+                    break;
+                }
+                screen[(row*8 + bit) * frame->width + col] = ( bmp[row * frame->width + col] & ( 1 << bit ) ) ? 1 : 0;
+            }
+        }
+    }
+
+    const int screenWidth = frame->width * 4;
+    const int screenHeight = frame->height * 4;
 
     InitWindow(screenWidth, screenHeight, "NI viewer");
     SetTargetFPS(60);
@@ -140,9 +164,17 @@ int main(void) {
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        DrawText("NI viewer", 190, 200, 20, LIGHTGRAY);
+        for(int n = 0; n < screenHeight; n+=4) {
+            for(int m = 0; m < screenWidth; m+=4) {
+                if(screen[(n/4)*frame->width + (m/4)]) {
+                    DrawRectangle(m, n, 4, 4, BLACK);
+                }
+            }
+        }
         EndDrawing();
     }
+    free(bmp);
+    free(screen);
     CloseWindow();
     return 0;
 }
