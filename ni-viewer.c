@@ -43,20 +43,6 @@ unsigned int f_get_w(FILE *fh) {
     return ret;
 }
 
-int renderToBmp(int *screen, unsigned char *bmp, int width, int height, int top, int left) {
-    for ( int row = 0; row < ( ( height + 7 ) / 8 ); row++ ) {
-        for ( int col = 0; col < width; col++ ) {
-            for ( int bit = 0; bit < 8; bit++ ) {
-                if ( row * 8 + bit >= height ) {
-                    break;
-                }
-                screen[(top+row*8 + bit) * width + left + col] = ( bmp[row * width + col] & ( 1 << bit ) ) ? 1 : 0;
-            }
-        }
-    }
-    return 0;
-}
-
 struct iff *iff_open(FILE *fh) {
     struct iff *iffh = NULL, *n = NULL, *p = NULL;
     unsigned int x = 0;
@@ -138,13 +124,7 @@ int byterun1_decompress ( register unsigned char *outbuf, register unsigned char
     return out;
 }
 
-int main(void) {
-
-    FILE *iffFile = fopen("8014.ni", "rb");
-    struct iff *iffh = iff_open(iffFile);
-    struct iff *img = iff_find(iffh, IFF_FRAM);
-
-
+int renderToBmp(int *screen, struct iff *img, int twidth, int theight) {
     struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
     unsigned char *bmp = malloc(((frame->height+7) / 8) * frame->width );
 
@@ -156,9 +136,31 @@ int main(void) {
         }
     }
     
-    int *screen = (int*)malloc(frame->width*frame->height*sizeof(int));
+    for ( int row = 0; row < ( ( frame->height + 7 ) / 8 ); row++ ) {
+        for ( int col = 0; col < frame->width; col++ ) {
+            for ( int bit = 0; bit < 8; bit++ ) {
+                if ( row * 8 + bit >= frame->height ) {
+                    break;
+                }
+                screen[(frame->top+row*8 + bit) * twidth + frame->left + col] = ( bmp[row * frame->width + col] & ( 1 << bit ) ) ? 1 : 0;
+            }
+        }
+    }
+    free(bmp);
+    return 0;
+}
 
-    renderToBmp(screen, bmp, frame->width, frame->height, frame->top, frame->left);
+int main(void) {
+    FILE *iffFile = fopen("8002.ni", "rb");
+    struct iff *iffh = iff_open(iffFile);
+    struct iff *img = iff_find(iffh, IFF_FRAM);
+    struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
+    int resWidth = frame->width;
+    int resHeight = frame->height;
+
+    int *screen = (int*)malloc(resWidth*resHeight*sizeof(int));
+
+    renderToBmp(screen, img, resWidth, resHeight);
 
     const int screenWidth = frame->width * 4;
     const int screenHeight = frame->height * 4;
@@ -166,6 +168,7 @@ int main(void) {
     InitWindow(screenWidth, screenHeight, "NI viewer");
     SetTargetFPS(60);
 
+    int ticks = 0;
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -176,10 +179,16 @@ int main(void) {
                 }
             }
         }
+        if(ticks > 30) {
+            img = iff_find(img, IFF_FRAM);
+            if(img) {
+            renderToBmp(screen, img, resWidth, resHeight);
+            }
+            ticks = 0;
+        }
         EndDrawing();
         ticks += 1;
     }
-    free(bmp);
     free(screen);
     CloseWindow();
     return 0;
