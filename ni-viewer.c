@@ -43,6 +43,20 @@ unsigned int f_get_w(FILE *fh) {
     return ret;
 }
 
+int renderToBmp(int *screen, unsigned char *bmp, int width, int height, int top, int left) {
+    for ( int row = 0; row < ( ( height + 7 ) / 8 ); row++ ) {
+        for ( int col = 0; col < width; col++ ) {
+            for ( int bit = 0; bit < 8; bit++ ) {
+                if ( row * 8 + bit >= height ) {
+                    break;
+                }
+                screen[(top+row*8 + bit) * width + left + col] = ( bmp[row * width + col] & ( 1 << bit ) ) ? 1 : 0;
+            }
+        }
+    }
+    return 0;
+}
+
 struct iff *iff_open(FILE *fh) {
     struct iff *iffh = NULL, *n = NULL, *p = NULL;
     unsigned int x = 0;
@@ -144,16 +158,7 @@ int main(void) {
     
     int *screen = (int*)malloc(frame->width*frame->height*sizeof(int));
 
-    for ( int row = 0; row < ( ( frame->height + 7 ) / 8 ); row++ ) {
-        for ( int col = 0; col < frame->width; col++ ) {
-            for ( int bit = 0; bit < 8; bit++ ) {
-                if ( row * 8 + bit >= frame->height ) {
-                    break;
-                }
-                screen[(row*8 + bit) * frame->width + col] = ( bmp[row * frame->width + col] & ( 1 << bit ) ) ? 1 : 0;
-            }
-        }
-    }
+    renderToBmp(screen, bmp, frame->width, frame->height, frame->top, frame->left);
 
     const int screenWidth = frame->width * 4;
     const int screenHeight = frame->height * 4;
@@ -172,6 +177,7 @@ int main(void) {
             }
         }
         EndDrawing();
+        ticks += 1;
     }
     free(bmp);
     free(screen);
