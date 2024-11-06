@@ -135,7 +135,7 @@ int renderToBmp(int *screen, struct iff *img, int twidth, int theight) {
             memcpy ( bmp, frame->data, img->length - sizeof ( struct iff_nimg_frame ) );
         }
     }
-    
+
     for ( int row = 0; row < ( ( frame->height + 7 ) / 8 ); row++ ) {
         for ( int col = 0; col < frame->width; col++ ) {
             for ( int bit = 0; bit < 8; bit++ ) {
@@ -154,6 +154,7 @@ int main(void) {
     FILE *iffFile = fopen("8002.ni", "rb");
     struct iff *iffh = iff_open(iffFile);
     struct iff *img = iff_find(iffh, IFF_FRAM);
+    struct iff *firstFrame = img;
     struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
     int resWidth = frame->width;
     int resHeight = frame->height;
@@ -179,10 +180,13 @@ int main(void) {
                 }
             }
         }
-        if(ticks > 30) {
+        if(ticks > 10) {
             img = iff_find(img, IFF_FRAM);
             if(img) {
-            renderToBmp(screen, img, resWidth, resHeight);
+                renderToBmp(screen, img, resWidth, resHeight);
+            } else {
+                img = firstFrame;
+                renderToBmp(screen, img, resWidth, resHeight);
             }
             ticks = 0;
         }
