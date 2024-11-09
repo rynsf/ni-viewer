@@ -7,6 +7,8 @@
 #define IFF_FORM            MAKE_ID ( "FORM" )
 #define IFF_FRAM            MAKE_ID("FRAM")
 #define IFF_NIMG            MAKE_ID("NIMG")
+#define TICKS_PER_SECOND		(1000/7.96875)  //(125.4875)
+
 
 typedef struct iff iff_t;
 struct iff {
@@ -28,6 +30,10 @@ struct iff_nimg_frame
     unsigned char  reserved;         // SBZ
     unsigned char  data[];
 };
+
+unsigned int swap_half ( unsigned int v ) {
+    return ( v >> 8 ) | ( ( v & 0xFF ) << 8 );
+}
 
 unsigned int f_get_w(FILE *fh) {
     unsigned int ret;
@@ -124,9 +130,14 @@ int byterun1_decompress ( register unsigned char *outbuf, register unsigned char
     return out;
 }
 
+// function: renderToBmp
+// renders the bitmap from the ni file to a screen bitmap
+// return: the amount of frames that the picture should stay on the screen for. The fps is caped at 60fps. TODO: there is a better way to keep track of time
 int renderToBmp(int *screen, struct iff *img, int twidth, int theight) {
     struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
     unsigned char *bmp = malloc(((frame->height+7) / 8) * frame->width );
+    unsigned short ticks;
+    int delay;
 
     if ( bmp ) {
         if ( frame->compr == 1 ) {
@@ -147,7 +158,10 @@ int renderToBmp(int *screen, struct iff *img, int twidth, int theight) {
         }
     }
     free(bmp);
-    return 0;
+    ticks = frame->delay;
+    ticks = swap_half(ticks);
+    delay = (ticks/TICKS_PER_SECOND)*60;
+    return delay;
 }
 
 int main(void) {
@@ -158,10 +172,11 @@ int main(void) {
     struct iff_nimg_frame *frame = (struct iff_nimg_frame *)( img->data );
     int resWidth = frame->width;
     int resHeight = frame->height;
+    int delay;
 
     int *screen = (int*)malloc(resWidth*resHeight*sizeof(int));
 
-    renderToBmp(screen, img, resWidth, resHeight);
+    delay = renderToBmp(screen, img, resWidth, resHeight); 
 
     const int screenWidth = frame->width * 4;
     const int screenHeight = frame->height * 4;
@@ -180,13 +195,13 @@ int main(void) {
                 }
             }
         }
-        if(ticks > 10) {
+        if(ticks > delay) {
             img = iff_find(img, IFF_FRAM);
             if(img) {
-                renderToBmp(screen, img, resWidth, resHeight);
+                delay = renderToBmp(screen, img, resWidth, resHeight);
             } else {
                 img = firstFrame;
-                renderToBmp(screen, img, resWidth, resHeight);
+                delay = renderToBmp(screen, img, resWidth, resHeight);
             }
             ticks = 0;
         }
