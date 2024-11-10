@@ -165,7 +165,7 @@ int renderToBmp(int *screen, struct iff *img, int twidth, int theight) {
 }
 
 int main(void) {
-    FILE *iffFile = fopen("8002.ni", "rb");
+    FILE *iffFile = fopen("./8019.ni", "rb");
     struct iff *iffh = iff_open(iffFile);
     struct iff *img = iff_find(iffh, IFF_FRAM);
     struct iff *firstFrame = img;
@@ -173,6 +173,8 @@ int main(void) {
     int resWidth = frame->width;
     int resHeight = frame->height;
     int delay;
+    Color bgColor = {114, 164, 136, 255};
+    Color fgColor = {13, 24, 20, 255};
 
     int *screen = (int*)malloc(resWidth*resHeight*sizeof(int));
 
@@ -187,11 +189,11 @@ int main(void) {
     int ticks = 0;
     while (!WindowShouldClose()) {
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(bgColor);
         for(int n = 0; n < screenHeight; n+=4) {
             for(int m = 0; m < screenWidth; m+=4) {
                 if(screen[(n/4)*frame->width + (m/4)]) {
-                    DrawRectangle(m, n, 4, 4, BLACK);
+                    DrawRectangle(m, n, 4, 4, fgColor);
                 }
             }
         }
