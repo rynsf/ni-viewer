@@ -175,6 +175,7 @@ int main(void) {
     int delay;
     Color bgColor = {114, 164, 136, 255};
     Color fgColor = {13, 24, 20, 255};
+    int pause = 0;
 
     int *screen = (int*)malloc(resWidth*resHeight*sizeof(int));
 
@@ -188,6 +189,9 @@ int main(void) {
 
     int ticks = 0;
     while (!WindowShouldClose()) {
+        if (IsKeyPressed(KEY_SPACE)) {
+            pause = ~pause;
+        }
         BeginDrawing();
         ClearBackground(bgColor);
         for(int n = 0; n < screenHeight; n+=4) {
@@ -208,7 +212,9 @@ int main(void) {
             ticks = 0;
         }
         EndDrawing();
-        ticks += 1;
+        if (pause == 0)  {
+            ticks += 1;
+        }
     }
     free(screen);
     CloseWindow();
